@@ -2,7 +2,6 @@ package btcdocker
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -15,17 +14,41 @@ type BitcoindConfig struct {
 
 type BitcoindContainer struct {
 	testcontainers.Container
-	Host string
+	Host               string
+	RpcPort            string
+	ZmqpubrawblockPort string
+	ZmqpubrawtxPort    string
 }
 
 func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*BitcoindContainer, error) {
+	bitcoinversion := "26.1"
 	req := testcontainers.ContainerRequest{
-		Image:        "ghcr.io/sethforprivacy/bitcoind:26.1",
-		ExposedPorts: []string{"8332/tcp"},
-		Env: map[string]string{
-			"REGTEST":     "1",
-			"RPCUSER":     config.RpcUser,
-			"RPCPASSWORD": config.RpcPassword,
+		FromDockerfile: testcontainers.FromDockerfile{
+			Context: "./docker/bitcoind",
+			BuildArgs: map[string]*string{
+				"BITCOIN_VERSION": &bitcoinversion,
+			},
+		},
+		ExposedPorts: []string{
+			"18443/tcp",
+			"18444/tcp",
+			"28334/tcp",
+			"28335/tcp",
+		},
+		Cmd: []string{
+			"bitcoind",
+			"-server=1",
+			"-regtest=1",
+			"-zmqpubrawblock=tcp://0.0.0.0:28334",
+			"-zmqpubrawtx=tcp://0.0.0.0:28335",
+			"-zmqpubhashblock=tcp://0.0.0.0:28336",
+			"-rpcbind=0.0.0.0",
+			"-rpcallowip=0.0.0.0/0",
+			"-rpcport=18443",
+			"-rpcuser=" + config.RpcUser,
+			"-rpcpassword=" + config.RpcPassword,
+			"-txindex=1",
+			"-dnsseed=0",
 		},
 		WaitingFor: wait.ForExposedPort(),
 	}
@@ -38,16 +61,27 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 		return nil, err
 	}
 
-	ip, err := container.Host(ctx)
+	host, err := container.Host(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	mappedPort, err := container.MappedPort(ctx, "8332")
+	rpcport, err := container.MappedPort(ctx, "18443")
 	if err != nil {
 		return nil, err
 	}
 
-	host := fmt.Sprintf("%s:%s", ip, mappedPort.Port())
-	return &BitcoindContainer{Container: container, Host: host}, nil
+	zmqpubrawblockport, err := container.MappedPort(ctx, "28334")
+	if err != nil {
+		return nil, err
+	}
+
+	zmqpubrawtxport, err := container.MappedPort(ctx, "28335")
+	if err != nil {
+		return nil, err
+	}
+
+	return &BitcoindContainer{Container: container, Host: host,
+		RpcPort: rpcport.Port(), ZmqpubrawblockPort: zmqpubrawblockport.Port(),
+		ZmqpubrawtxPort: zmqpubrawtxport.Port()}, nil
 }
