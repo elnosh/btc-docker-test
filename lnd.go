@@ -20,6 +20,7 @@ import (
 
 type Lnd struct {
 	testcontainers.Container
+	Client   lnrpc.LightningClient
 	Host     string
 	GrpcPort string
 	RestPort string
@@ -105,8 +106,15 @@ func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 		return nil, err
 	}
 
-	lndContainer := &Lnd{
+	lndHost := host + ":" + grpcPort.Port()
+	lndClient, err := SetupLndClient(lndHost, lndDir)
+	if err != nil {
+		return nil, fmt.Errorf("error setting up lnd client: %v", err)
+	}
+
+	lnd := &Lnd{
 		Container: container,
+		Client:    lndClient,
 		Host:      host,
 		GrpcPort:  grpcPort.Port(),
 		RestPort:  restPort.Port(),
@@ -114,18 +122,14 @@ func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 		lndDir:    lndDir,
 	}
 
-	return lndContainer, nil
+	return lnd, nil
 }
 
-type LndClient struct {
-	grpcClient lnrpc.LightningClient
-}
-
-func SetupLndClient(host string, lndDir string) (*LndClient, error) {
+func SetupLndClient(host string, lndDir string) (lnrpc.LightningClient, error) {
 	tlsCert := filepath.Join(lndDir, "/tls.cert")
 	creds, err := credentials.NewClientTLSFromFile(tlsCert, "")
 	if err != nil {
-		return nil, fmt.Errorf("error setting up grpc client: %v", err)
+		return nil, fmt.Errorf("error setting tls creds: %v", err)
 	}
 
 	macaroonFile := filepath.Join(lndDir, "/data/chain/bitcoin/regtest/admin.macaroon")
@@ -155,5 +159,5 @@ func SetupLndClient(host string, lndDir string) (*LndClient, error) {
 	}
 
 	grpcClient := lnrpc.NewLightningClient(conn)
-	return &LndClient{grpcClient: grpcClient}, nil
+	return grpcClient, nil
 }
