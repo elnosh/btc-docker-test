@@ -1,1 +1,0 @@
-### Docker images from [Polar](https://github.com/jamaljsr/polar)

@@ -2,8 +2,10 @@ package btcdocker
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -14,6 +16,9 @@ type BitcoindConfig struct {
 
 type BitcoindContainer struct {
 	testcontainers.Container
+	networkName        string
+	networkAlias       []string
+	config             BitcoindConfig
 	Host               string
 	RpcPort            string
 	ZmqpubrawblockPort string
@@ -21,14 +26,15 @@ type BitcoindContainer struct {
 }
 
 func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*BitcoindContainer, error) {
-	bitcoinversion := "26.1"
+	newNetwork, err := network.New(ctx, network.WithCheckDuplicate())
+	if err != nil {
+		return nil, fmt.Errorf("error setting up network: %v", err)
+	}
+	networkName := newNetwork.Name
+	networkAlias := []string{"btc-regtest"}
+
 	req := testcontainers.ContainerRequest{
-		FromDockerfile: testcontainers.FromDockerfile{
-			Context: "./docker/bitcoind",
-			BuildArgs: map[string]*string{
-				"BITCOIN_VERSION": &bitcoinversion,
-			},
-		},
+		Image: "polarlightning/bitcoind:26.0",
 		ExposedPorts: []string{
 			"18443/tcp",
 			"18444/tcp",
@@ -39,6 +45,7 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 			"bitcoind",
 			"-server=1",
 			"-regtest=1",
+			"-debug=1",
 			"-zmqpubrawblock=tcp://0.0.0.0:28334",
 			"-zmqpubrawtx=tcp://0.0.0.0:28335",
 			"-zmqpubhashblock=tcp://0.0.0.0:28336",
@@ -48,7 +55,15 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 			"-rpcuser=" + config.RpcUser,
 			"-rpcpassword=" + config.RpcPassword,
 			"-txindex=1",
+			"-upnp=0",
 			"-dnsseed=0",
+			"-rest",
+			"-listen=1",
+			"-listenonion=0",
+		},
+		Networks: []string{networkName},
+		NetworkAliases: map[string][]string{
+			networkName: networkAlias,
 		},
 		WaitingFor: wait.ForExposedPort(),
 	}
@@ -61,7 +76,7 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 		return nil, err
 	}
 
-	host, err := container.Host(ctx)
+	host, err := container.ContainerIP(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +96,16 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 		return nil, err
 	}
 
-	return &BitcoindContainer{Container: container, Host: host,
-		RpcPort: rpcport.Port(), ZmqpubrawblockPort: zmqpubrawblockport.Port(),
-		ZmqpubrawtxPort: zmqpubrawtxport.Port()}, nil
+	bitcoindContainer := &BitcoindContainer{
+		Container:          container,
+		networkName:        networkName,
+		networkAlias:       networkAlias,
+		config:             config,
+		Host:               host,
+		RpcPort:            rpcport.Port(),
+		ZmqpubrawblockPort: zmqpubrawblockport.Port(),
+		ZmqpubrawtxPort:    zmqpubrawtxport.Port(),
+	}
+
+	return bitcoindContainer, nil
 }
