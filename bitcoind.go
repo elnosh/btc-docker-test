@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -14,24 +15,24 @@ type BitcoindConfig struct {
 	RpcPassword string
 }
 
-type BitcoindContainer struct {
+type Bitcoind struct {
 	testcontainers.Container
-	networkName        string
-	networkAlias       []string
-	config             BitcoindConfig
+	Client             *rpcclient.Client
+	ContainerIP        string
 	Host               string
 	RpcPort            string
 	ZmqpubrawblockPort string
 	ZmqpubrawtxPort    string
+	network            string
+	config             BitcoindConfig
 }
 
-func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*BitcoindContainer, error) {
+func SetupBitcoind(ctx context.Context, config BitcoindConfig) (*Bitcoind, error) {
 	newNetwork, err := network.New(ctx, network.WithCheckDuplicate())
 	if err != nil {
 		return nil, fmt.Errorf("error setting up network: %v", err)
 	}
 	networkName := newNetwork.Name
-	networkAlias := []string{"btc-regtest"}
 
 	req := testcontainers.ContainerRequest{
 		Image: "polarlightning/bitcoind:26.0",
@@ -62,9 +63,6 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 			"-listenonion=0",
 		},
 		Networks: []string{networkName},
-		NetworkAliases: map[string][]string{
-			networkName: networkAlias,
-		},
 		WaitingFor: wait.ForAll(
 			wait.ForListeningPort("18443/tcp"),
 			wait.ForListeningPort("18444/tcp"),
@@ -81,7 +79,7 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 		return nil, err
 	}
 
-	host, err := container.ContainerIP(ctx)
+	containerIP, err := container.ContainerIP(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -101,16 +99,34 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 		return nil, err
 	}
 
-	bitcoindContainer := &BitcoindContainer{
+	host, err := container.Host(ctx)
+	if err != nil {
+		return nil, err
+	}
+	connConfig := &rpcclient.ConnConfig{
+		Host:         host + ":" + rpcport.Port(),
+		User:         config.RpcUser,
+		Pass:         config.RpcPassword,
+		DisableTLS:   true,
+		HTTPPostMode: true,
+	}
+
+	rpcClient, err := rpcclient.New(connConfig, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	bitcoind := &Bitcoind{
 		Container:          container,
-		networkName:        networkName,
-		networkAlias:       networkAlias,
-		config:             config,
+		Client:             rpcClient,
+		ContainerIP:        containerIP,
 		Host:               host,
 		RpcPort:            rpcport.Port(),
 		ZmqpubrawblockPort: zmqpubrawblockport.Port(),
 		ZmqpubrawtxPort:    zmqpubrawtxport.Port(),
+		network:            networkName,
+		config:             config,
 	}
 
-	return bitcoindContainer, nil
+	return bitcoind, nil
 }

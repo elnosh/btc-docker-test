@@ -18,7 +18,7 @@ import (
 	"gopkg.in/macaroon.v2"
 )
 
-type LndContainer struct {
+type Lnd struct {
 	testcontainers.Container
 	Host     string
 	GrpcPort string
@@ -27,14 +27,14 @@ type LndContainer struct {
 	lndDir   string
 }
 
-func SetupLndContainer(ctx context.Context, bitcoindContainer *BitcoindContainer) (*LndContainer, error) {
+func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 	currentDir, err := os.Getwd()
 	if err != nil {
 		return nil, errors.New("error getting current working directory")
 	}
 	lndDir := filepath.Join(currentDir, ".lnd")
 
-	rpchost := bitcoindContainer.Host + ":18443"
+	rpchost := bitcoind.ContainerIP + ":18443"
 	lndReq := testcontainers.ContainerRequest{
 		Image: "polarlightning/lnd:0.17.4-beta",
 		ExposedPorts: []string{
@@ -42,10 +42,7 @@ func SetupLndContainer(ctx context.Context, bitcoindContainer *BitcoindContainer
 			"9735/tcp",
 			"10009/tcp",
 		},
-		Networks: []string{bitcoindContainer.networkName},
-		NetworkAliases: map[string][]string{
-			bitcoindContainer.networkName: bitcoindContainer.networkAlias,
-		},
+		Networks: []string{bitcoind.network},
 		Cmd: []string{
 			"lnd",
 			"--noseedbackup",
@@ -56,10 +53,10 @@ func SetupLndContainer(ctx context.Context, bitcoindContainer *BitcoindContainer
 			"--bitcoin.regtest",
 			"--bitcoin.node=bitcoind",
 			"--bitcoind.rpchost=" + rpchost,
-			"--bitcoind.rpcuser=" + bitcoindContainer.config.RpcUser,
-			"--bitcoind.rpcpass=" + bitcoindContainer.config.RpcPassword,
-			"--bitcoind.zmqpubrawblock=tcp://" + bitcoindContainer.Host + ":28334",
-			"--bitcoind.zmqpubrawtx=tcp://" + bitcoindContainer.Host + ":28335",
+			"--bitcoind.rpcuser=" + bitcoind.config.RpcUser,
+			"--bitcoind.rpcpass=" + bitcoind.config.RpcPassword,
+			"--bitcoind.zmqpubrawblock=tcp://" + bitcoind.Host + ":28334",
+			"--bitcoind.zmqpubrawtx=tcp://" + bitcoind.Host + ":28335",
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.Mounts = []mount.Mount{
@@ -108,7 +105,7 @@ func SetupLndContainer(ctx context.Context, bitcoindContainer *BitcoindContainer
 		return nil, err
 	}
 
-	lndContainer := &LndContainer{
+	lndContainer := &Lnd{
 		Container: container,
 		Host:      host,
 		GrpcPort:  grpcPort.Port(),
