@@ -56,8 +56,8 @@ func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 			"--bitcoind.rpchost=" + rpchost,
 			"--bitcoind.rpcuser=" + bitcoind.config.RpcUser,
 			"--bitcoind.rpcpass=" + bitcoind.config.RpcPassword,
-			"--bitcoind.zmqpubrawblock=tcp://" + bitcoind.Host + ":28334",
-			"--bitcoind.zmqpubrawtx=tcp://" + bitcoind.Host + ":28335",
+			"--bitcoind.zmqpubrawblock=tcp://" + bitcoind.ContainerIP + ":28334",
+			"--bitcoind.zmqpubrawtx=tcp://" + bitcoind.ContainerIP + ":28335",
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.Mounts = []mount.Mount{
