@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -33,7 +35,8 @@ func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 	if err != nil {
 		return nil, errors.New("error getting current working directory")
 	}
-	lndDir := filepath.Join(currentDir, ".lnd")
+	randomId := strconv.Itoa(rand.Int())
+	lndDir := filepath.Join(currentDir, "btcdocker", randomId)
 
 	rpchost := bitcoind.ContainerIP + ":18443"
 	lndReq := testcontainers.ContainerRequest{
