@@ -34,7 +34,7 @@ func SetupLndContainer(ctx context.Context, bitcoindContainer *BitcoindContainer
 	}
 	lndDir := filepath.Join(currentDir, ".lnd")
 
-	rpchost := bitcoindContainer.networkAlias[0] + ":18443"
+	rpchost := bitcoindContainer.Host + ":18443"
 	lndReq := testcontainers.ContainerRequest{
 		Image: "polarlightning/lnd:0.17.4-beta",
 		ExposedPorts: []string{
@@ -73,7 +73,11 @@ func SetupLndContainer(ctx context.Context, bitcoindContainer *BitcoindContainer
 				},
 			}
 		},
-		WaitingFor: wait.ForExposedPort(),
+		WaitingFor: wait.ForAll(
+			wait.ForListeningPort("8080/tcp"),
+			wait.ForListeningPort("9735/tcp"),
+			wait.ForListeningPort("10009/tcp"),
+		),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{

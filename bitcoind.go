@@ -65,7 +65,12 @@ func SetupBitcoindContainer(ctx context.Context, config BitcoindConfig) (*Bitcoi
 		NetworkAliases: map[string][]string{
 			networkName: networkAlias,
 		},
-		WaitingFor: wait.ForExposedPort(),
+		WaitingFor: wait.ForAll(
+			wait.ForListeningPort("18443/tcp"),
+			wait.ForListeningPort("18444/tcp"),
+			wait.ForListeningPort("28334/tcp"),
+			wait.ForListeningPort("28335/tcp"),
+		),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
