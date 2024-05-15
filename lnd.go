@@ -2,7 +2,6 @@ package btcdocker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -32,12 +31,8 @@ type Lnd struct {
 }
 
 func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return nil, errors.New("error getting current working directory")
-	}
 	randomId := strconv.Itoa(rand.Int())
-	lndDir := filepath.Join(currentDir, "btcdocker", randomId)
+	lndDir := filepath.Join(bitcoind.dir, randomId)
 
 	rpchost := bitcoind.ContainerIP + ":18443"
 	lndReq := testcontainers.ContainerRequest{

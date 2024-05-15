@@ -2,7 +2,10 @@ package btcdocker
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/testcontainers/testcontainers-go"
@@ -24,6 +27,7 @@ type Bitcoind struct {
 	ZmqpubrawblockPort string
 	ZmqpubrawtxPort    string
 	network            string
+	dir                string
 	config             BitcoindConfig
 }
 
@@ -33,6 +37,16 @@ func SetupBitcoind(ctx context.Context, config BitcoindConfig) (*Bitcoind, error
 		return nil, fmt.Errorf("error setting up network: %v", err)
 	}
 	networkName := newNetwork.Name
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return nil, errors.New("error getting current working directory")
+	}
+
+	btcdockerDir := filepath.Join(currentDir, "btcdocker")
+	if err = os.MkdirAll(btcdockerDir, 0750); err != nil {
+		return nil, fmt.Errorf("error creating btcdocker dir: %v", err)
+	}
 
 	req := testcontainers.ContainerRequest{
 		Image: "polarlightning/bitcoind:26.0",
@@ -125,8 +139,22 @@ func SetupBitcoind(ctx context.Context, config BitcoindConfig) (*Bitcoind, error
 		ZmqpubrawblockPort: zmqpubrawblockport.Port(),
 		ZmqpubrawtxPort:    zmqpubrawtxport.Port(),
 		network:            networkName,
+		dir:                btcdockerDir,
 		config:             config,
 	}
 
 	return bitcoind, nil
+}
+
+func (bitcoind *Bitcoind) Terminate(ctx context.Context) error {
+	//delete created dir
+	if err := os.RemoveAll(bitcoind.dir); err != nil {
+		return fmt.Errorf("error deleting created btcdocker dir: %v", err)
+	}
+
+	if err := bitcoind.Container.Terminate(ctx); err != nil {
+		return fmt.Errorf("error terminating container: %v", err)
+	}
+
+	return nil
 }
