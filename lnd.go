@@ -22,12 +22,13 @@ import (
 
 type Lnd struct {
 	testcontainers.Container
-	Client   lnrpc.LightningClient
-	Host     string
-	GrpcPort string
-	RestPort string
-	P2PPort  string
-	lndDir   string
+	Client      lnrpc.LightningClient
+	ContainerIP string
+	Host        string
+	GrpcPort    string
+	RestPort    string
+	P2PPort     string
+	LndDir      string
 }
 
 func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
@@ -89,6 +90,11 @@ func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 		return nil, err
 	}
 
+	containerIP, err := container.ContainerIP(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	host, err := container.Host(ctx)
 	if err != nil {
 		return nil, err
@@ -116,13 +122,14 @@ func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 	}
 
 	lnd := &Lnd{
-		Container: container,
-		Client:    lndClient,
-		Host:      host,
-		GrpcPort:  grpcPort.Port(),
-		RestPort:  restPort.Port(),
-		P2PPort:   p2pPort.Port(),
-		lndDir:    lndDir,
+		Container:   container,
+		Client:      lndClient,
+		ContainerIP: containerIP,
+		Host:        host,
+		GrpcPort:    grpcPort.Port(),
+		RestPort:    restPort.Port(),
+		P2PPort:     p2pPort.Port(),
+		LndDir:      lndDir,
 	}
 
 	return lnd, nil
