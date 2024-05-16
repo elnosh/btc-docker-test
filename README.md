@@ -1,4 +1,4 @@
-# BTC Docker
+# BTC Docker Test
 
 Create `Bitcoind` and `Lnd` containers in regtest. Useful for integration testing.
 

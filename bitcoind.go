@@ -14,21 +14,28 @@ import (
 )
 
 const (
-	RPC_USER     = "testuser"
-	RPC_PASSWORD = "testpassword"
+	RPC_USER                     = "testuser"
+	RPC_PASSWORD                 = "testpassword"
+	BITCOIND_RPC_PORT            = "18443"
+	BITCOIND_ZMQPUBRAWBLOCK_PORT = "28334"
+	BITCOIND_ZMQPUBRAWTX_PORT    = "28335"
 )
 
 type Bitcoind struct {
 	testcontainers.Container
 	Client *rpcclient.Client
+
 	// ContainerIP is to be used when communicating between containers in the network
-	ContainerIP        string
-	Host               string
+	ContainerIP string
+	Host        string
+
+	// These are the mapped ports which are exposed to the host
 	RpcPort            string
 	ZmqpubrawblockPort string
 	ZmqpubrawtxPort    string
-	network            string
-	dir                string
+
+	network string
+	dir     string
 }
 
 func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
@@ -51,22 +58,20 @@ func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 	req := testcontainers.ContainerRequest{
 		Image: "polarlightning/bitcoind:26.0",
 		ExposedPorts: []string{
-			"18443/tcp",
-			"18444/tcp",
-			"28334/tcp",
-			"28335/tcp",
+			BITCOIND_RPC_PORT,
+			BITCOIND_ZMQPUBRAWBLOCK_PORT,
+			BITCOIND_ZMQPUBRAWTX_PORT,
 		},
 		Cmd: []string{
 			"bitcoind",
 			"-server=1",
 			"-regtest=1",
 			"-debug=1",
-			"-zmqpubrawblock=tcp://0.0.0.0:28334",
-			"-zmqpubrawtx=tcp://0.0.0.0:28335",
-			"-zmqpubhashblock=tcp://0.0.0.0:28336",
+			"-zmqpubrawblock=tcp://0.0.0.0:" + BITCOIND_ZMQPUBRAWBLOCK_PORT,
+			"-zmqpubrawtx=tcp://0.0.0.0:" + BITCOIND_ZMQPUBRAWTX_PORT,
 			"-rpcbind=0.0.0.0",
 			"-rpcallowip=0.0.0.0/0",
-			"-rpcport=18443",
+			"-rpcport=" + BITCOIND_RPC_PORT,
 			"-rpcuser=" + RPC_USER,
 			"-rpcpassword=" + RPC_PASSWORD,
 			"-txindex=1",
@@ -78,10 +83,9 @@ func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 		},
 		Networks: []string{networkName},
 		WaitingFor: wait.ForAll(
-			wait.ForListeningPort("18443/tcp"),
-			wait.ForListeningPort("18444/tcp"),
-			wait.ForListeningPort("28334/tcp"),
-			wait.ForListeningPort("28335/tcp"),
+			wait.ForListeningPort(BITCOIND_RPC_PORT),
+			wait.ForListeningPort(BITCOIND_ZMQPUBRAWBLOCK_PORT),
+			wait.ForListeningPort(BITCOIND_ZMQPUBRAWTX_PORT),
 		),
 	}
 
@@ -98,25 +102,26 @@ func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 		return nil, err
 	}
 
-	rpcport, err := container.MappedPort(ctx, "18443")
-	if err != nil {
-		return nil, err
-	}
-
-	zmqpubrawblockport, err := container.MappedPort(ctx, "28334")
-	if err != nil {
-		return nil, err
-	}
-
-	zmqpubrawtxport, err := container.MappedPort(ctx, "28335")
-	if err != nil {
-		return nil, err
-	}
-
 	host, err := container.Host(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	rpcport, err := container.MappedPort(ctx, BITCOIND_RPC_PORT)
+	if err != nil {
+		return nil, err
+	}
+
+	zmqpubrawblockport, err := container.MappedPort(ctx, BITCOIND_ZMQPUBRAWBLOCK_PORT)
+	if err != nil {
+		return nil, err
+	}
+
+	zmqpubrawtxport, err := container.MappedPort(ctx, BITCOIND_ZMQPUBRAWTX_PORT)
+	if err != nil {
+		return nil, err
+	}
+
 	connConfig := &rpcclient.ConnConfig{
 		Host:         host + ":" + rpcport.Port(),
 		User:         RPC_USER,

@@ -19,45 +19,55 @@ import (
 	"gopkg.in/macaroon.v2"
 )
 
+const (
+	LND_GRPC_PORT = "10009"
+	LND_REST_PORT = "8080"
+	LND_P2P_PORT  = "9735"
+)
+
 type Lnd struct {
 	testcontainers.Container
 	Client lnrpc.LightningClient
+
 	// ContainerIP is to be used when communicating between containers in the network
 	ContainerIP string
 	Host        string
-	GrpcPort    string
-	RestPort    string
-	P2PPort     string
-	LndDir      string
+
+	// These are the mapped ports which are exposed to the host
+	GrpcPort string
+	RestPort string
+	P2PPort  string
+
+	LndDir string
 }
 
 func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 	randomId := strconv.Itoa(rand.Int())
 	lndDir := filepath.Join(bitcoind.dir, randomId)
 
-	rpchost := bitcoind.ContainerIP + ":18443"
+	rpchost := bitcoind.ContainerIP + ":" + BITCOIND_RPC_PORT
 	lndReq := testcontainers.ContainerRequest{
 		Image: "polarlightning/lnd:0.17.4-beta",
 		ExposedPorts: []string{
-			"8080/tcp",
-			"9735/tcp",
-			"10009/tcp",
+			LND_REST_PORT,
+			LND_P2P_PORT,
+			LND_GRPC_PORT,
 		},
 		Networks: []string{bitcoind.network},
 		Cmd: []string{
 			"lnd",
 			"--noseedbackup",
-			"--listen=0.0.0.0:9735",
-			"--rpclisten=0.0.0.0:10009",
-			"--restlisten=0.0.0.0:8080",
+			"--listen=0.0.0.0:" + LND_P2P_PORT,
+			"--rpclisten=0.0.0.0:" + LND_GRPC_PORT,
+			"--restlisten=0.0.0.0:" + LND_REST_PORT,
 			"--bitcoin.active",
 			"--bitcoin.regtest",
 			"--bitcoin.node=bitcoind",
 			"--bitcoind.rpchost=" + rpchost,
 			"--bitcoind.rpcuser=" + RPC_USER,
 			"--bitcoind.rpcpass=" + RPC_PASSWORD,
-			"--bitcoind.zmqpubrawblock=tcp://" + bitcoind.ContainerIP + ":28334",
-			"--bitcoind.zmqpubrawtx=tcp://" + bitcoind.ContainerIP + ":28335",
+			"--bitcoind.zmqpubrawblock=tcp://" + bitcoind.ContainerIP + ":" + BITCOIND_ZMQPUBRAWBLOCK_PORT,
+			"--bitcoind.zmqpubrawtx=tcp://" + bitcoind.ContainerIP + ":" + BITCOIND_ZMQPUBRAWTX_PORT,
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.Mounts = []mount.Mount{
@@ -72,9 +82,9 @@ func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 			}
 		},
 		WaitingFor: wait.ForAll(
-			wait.ForListeningPort("8080/tcp"),
-			wait.ForListeningPort("9735/tcp"),
-			wait.ForListeningPort("10009/tcp"),
+			wait.ForListeningPort(LND_REST_PORT),
+			wait.ForListeningPort(LND_P2P_PORT),
+			wait.ForListeningPort(LND_GRPC_PORT),
 		),
 	}
 
@@ -96,17 +106,17 @@ func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 		return nil, err
 	}
 
-	grpcPort, err := container.MappedPort(ctx, "10009")
+	grpcPort, err := container.MappedPort(ctx, LND_GRPC_PORT)
 	if err != nil {
 		return nil, err
 	}
 
-	restPort, err := container.MappedPort(ctx, "8080")
+	restPort, err := container.MappedPort(ctx, LND_REST_PORT)
 	if err != nil {
 		return nil, err
 	}
 
-	p2pPort, err := container.MappedPort(ctx, "9735")
+	p2pPort, err := container.MappedPort(ctx, LND_P2P_PORT)
 	if err != nil {
 		return nil, err
 	}
