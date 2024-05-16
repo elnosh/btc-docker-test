@@ -13,14 +13,15 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-type BitcoindConfig struct {
-	RpcUser     string
-	RpcPassword string
-}
+const (
+	RPC_USER     = "testuser"
+	RPC_PASSWORD = "testpassword"
+)
 
 type Bitcoind struct {
 	testcontainers.Container
-	Client             *rpcclient.Client
+	Client *rpcclient.Client
+	// ContainerIP is to be used when communicating between containers in the network
 	ContainerIP        string
 	Host               string
 	RpcPort            string
@@ -28,10 +29,9 @@ type Bitcoind struct {
 	ZmqpubrawtxPort    string
 	network            string
 	dir                string
-	config             BitcoindConfig
 }
 
-func SetupBitcoind(ctx context.Context, config BitcoindConfig) (*Bitcoind, error) {
+func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 	newNetwork, err := network.New(ctx, network.WithCheckDuplicate())
 	if err != nil {
 		return nil, fmt.Errorf("error setting up network: %v", err)
@@ -67,8 +67,8 @@ func SetupBitcoind(ctx context.Context, config BitcoindConfig) (*Bitcoind, error
 			"-rpcbind=0.0.0.0",
 			"-rpcallowip=0.0.0.0/0",
 			"-rpcport=18443",
-			"-rpcuser=" + config.RpcUser,
-			"-rpcpassword=" + config.RpcPassword,
+			"-rpcuser=" + RPC_USER,
+			"-rpcpassword=" + RPC_PASSWORD,
 			"-txindex=1",
 			"-upnp=0",
 			"-dnsseed=0",
@@ -119,8 +119,8 @@ func SetupBitcoind(ctx context.Context, config BitcoindConfig) (*Bitcoind, error
 	}
 	connConfig := &rpcclient.ConnConfig{
 		Host:         host + ":" + rpcport.Port(),
-		User:         config.RpcUser,
-		Pass:         config.RpcPassword,
+		User:         RPC_USER,
+		Pass:         RPC_PASSWORD,
 		DisableTLS:   true,
 		HTTPPostMode: true,
 	}
@@ -140,7 +140,6 @@ func SetupBitcoind(ctx context.Context, config BitcoindConfig) (*Bitcoind, error
 		ZmqpubrawtxPort:    zmqpubrawtxport.Port(),
 		network:            networkName,
 		dir:                btcdockerDir,
-		config:             config,
 	}
 
 	return bitcoind, nil

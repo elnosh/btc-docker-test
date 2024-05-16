@@ -21,7 +21,8 @@ import (
 
 type Lnd struct {
 	testcontainers.Container
-	Client      lnrpc.LightningClient
+	Client lnrpc.LightningClient
+	// ContainerIP is to be used when communicating between containers in the network
 	ContainerIP string
 	Host        string
 	GrpcPort    string
@@ -30,7 +31,7 @@ type Lnd struct {
 	LndDir      string
 }
 
-func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
+func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 	randomId := strconv.Itoa(rand.Int())
 	lndDir := filepath.Join(bitcoind.dir, randomId)
 
@@ -53,8 +54,8 @@ func SetupLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 			"--bitcoin.regtest",
 			"--bitcoin.node=bitcoind",
 			"--bitcoind.rpchost=" + rpchost,
-			"--bitcoind.rpcuser=" + bitcoind.config.RpcUser,
-			"--bitcoind.rpcpass=" + bitcoind.config.RpcPassword,
+			"--bitcoind.rpcuser=" + RPC_USER,
+			"--bitcoind.rpcpass=" + RPC_PASSWORD,
 			"--bitcoind.zmqpubrawblock=tcp://" + bitcoind.ContainerIP + ":28334",
 			"--bitcoind.zmqpubrawtx=tcp://" + bitcoind.ContainerIP + ":28335",
 		},
