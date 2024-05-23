@@ -51,7 +51,7 @@ func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 	}
 
 	btcdockerDir := filepath.Join(currentDir, "btcdocker")
-	if err = os.MkdirAll(btcdockerDir, 0750); err != nil {
+	if err = os.MkdirAll(btcdockerDir, 0777); err != nil {
 		return nil, fmt.Errorf("error creating btcdocker dir: %v", err)
 	}
 

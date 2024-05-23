@@ -3,6 +3,7 @@ package btcdocker
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -38,12 +39,17 @@ type Lnd struct {
 	RestPort string
 	P2PPort  string
 
-	LndDir string
+	LndDir        string
+	AdminMacaroon []byte
 }
 
 func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 	randomId := strconv.Itoa(rand.Int())
+
 	lndDir := filepath.Join(bitcoind.dir, randomId)
+	if err := os.MkdirAll(lndDir, 0777); err != nil {
+		return nil, fmt.Errorf("error creating lnd dir: %v", err)
+	}
 
 	rpchost := bitcoind.ContainerIP + ":" + BITCOIND_RPC_PORT
 	lndReq := testcontainers.ContainerRequest{
@@ -57,9 +63,11 @@ func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 		Cmd: []string{
 			"lnd",
 			"--noseedbackup",
+			"--debuglevel=debug",
 			"--listen=0.0.0.0:" + LND_P2P_PORT,
 			"--rpclisten=0.0.0.0:" + LND_GRPC_PORT,
 			"--restlisten=0.0.0.0:" + LND_REST_PORT,
+			"--protocol.wumbo-channels",
 			"--bitcoin.active",
 			"--bitcoin.regtest",
 			"--bitcoin.node=bitcoind",
@@ -121,37 +129,42 @@ func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 		return nil, err
 	}
 
+	macaroonFile, err := container.CopyFileFromContainer(ctx, "/home/lnd/.lnd/data/chain/bitcoin/regtest/admin.macaroon")
+	if err != nil {
+		return nil, fmt.Errorf("error getting macaroon file from container: %v", err)
+	}
+
+	macaroonBytes, err := io.ReadAll(macaroonFile)
+	if err != nil {
+		return nil, fmt.Errorf("error reading macaroon file: %v", err)
+	}
+
 	lndHost := host + ":" + grpcPort.Port()
-	lndClient, err := SetupLndClient(lndHost, lndDir)
+	tlsCert := filepath.Join(lndDir, "tls.cert")
+	lndClient, err := SetupLndClient(lndHost, tlsCert, macaroonBytes)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up lnd client: %v", err)
 	}
 
 	lnd := &Lnd{
-		Container:   container,
-		Client:      lndClient,
-		ContainerIP: containerIP,
-		Host:        host,
-		GrpcPort:    grpcPort.Port(),
-		RestPort:    restPort.Port(),
-		P2PPort:     p2pPort.Port(),
-		LndDir:      lndDir,
+		Container:     container,
+		Client:        lndClient,
+		ContainerIP:   containerIP,
+		Host:          host,
+		GrpcPort:      grpcPort.Port(),
+		RestPort:      restPort.Port(),
+		P2PPort:       p2pPort.Port(),
+		LndDir:        lndDir,
+		AdminMacaroon: macaroonBytes,
 	}
 
 	return lnd, nil
 }
 
-func SetupLndClient(host string, lndDir string) (lnrpc.LightningClient, error) {
-	tlsCert := filepath.Join(lndDir, "/tls.cert")
+func SetupLndClient(host string, tlsCert string, macaroonBytes []byte) (lnrpc.LightningClient, error) {
 	creds, err := credentials.NewClientTLSFromFile(tlsCert, "")
 	if err != nil {
 		return nil, fmt.Errorf("error setting tls creds: %v", err)
-	}
-
-	macaroonFile := filepath.Join(lndDir, "/data/chain/bitcoin/regtest/admin.macaroon")
-	macaroonBytes, err := os.ReadFile(macaroonFile)
-	if err != nil {
-		return nil, fmt.Errorf("error reading macaroon: %v", err)
 	}
 
 	macaroon := &macaroon.Macaroon{}
