@@ -25,7 +25,7 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.8 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
-	github.com/btcsuite/btcwallet v0.16.10-0.20240404104514-b2f31f9045fb // indirect
+	github.com/btcsuite/btcwallet v0.16.10-0.20240127010340-16b422a2e8bf // indirect
 	github.com/btcsuite/btcwallet/wallet/txauthor v1.3.4 // indirect
 	github.com/btcsuite/btcwallet/wallet/txrules v1.2.1 // indirect
 	github.com/btcsuite/btcwallet/wallet/txsizes v1.2.4 // indirect
@@ -203,3 +203,4 @@ require (
 )
 
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
+
