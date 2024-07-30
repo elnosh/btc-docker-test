@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	github.com/btcsuite/btcd v0.24.2-beta.rc1.0.20240403021926-ae5533602c46
-	github.com/docker/docker v25.0.5+incompatible
+	github.com/docker/docker v26.1.5+incompatible
 	github.com/lightningnetwork/lnd v0.17.4-beta
 	github.com/testcontainers/testcontainers-go v0.31.0
 	google.golang.org/grpc v1.63.2
