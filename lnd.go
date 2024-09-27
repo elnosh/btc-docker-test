@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -28,7 +29,8 @@ const (
 
 type Lnd struct {
 	testcontainers.Container
-	Client lnrpc.LightningClient
+	Client         lnrpc.LightningClient
+	InvoicesClient invoicesrpc.InvoicesClient
 
 	// ContainerIP is to be used when communicating between containers in the network
 	ContainerIP string
@@ -141,27 +143,33 @@ func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 
 	lndHost := host + ":" + grpcPort.Port()
 	tlsCert := filepath.Join(lndDir, "tls.cert")
-	lndClient, err := SetupLndClient(lndHost, tlsCert, macaroonBytes)
+	lightningClient, err := setupLndClient(lndHost, tlsCert, macaroonBytes)
 	if err != nil {
-		return nil, fmt.Errorf("error setting up lnd client: %v", err)
+		return nil, fmt.Errorf("error setting up lightning client: %v", err)
+	}
+
+	invoicesClient, err := setupInvoicesClient(lndHost, tlsCert, macaroonBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error setting up invoices client: %v", err)
 	}
 
 	lnd := &Lnd{
-		Container:     container,
-		Client:        lndClient,
-		ContainerIP:   containerIP,
-		Host:          host,
-		GrpcPort:      grpcPort.Port(),
-		RestPort:      restPort.Port(),
-		P2PPort:       p2pPort.Port(),
-		LndDir:        lndDir,
-		AdminMacaroon: macaroonBytes,
+		Container:      container,
+		Client:         lightningClient,
+		InvoicesClient: invoicesClient,
+		ContainerIP:    containerIP,
+		Host:           host,
+		GrpcPort:       grpcPort.Port(),
+		RestPort:       restPort.Port(),
+		P2PPort:        p2pPort.Port(),
+		LndDir:         lndDir,
+		AdminMacaroon:  macaroonBytes,
 	}
 
 	return lnd, nil
 }
 
-func SetupLndClient(host string, tlsCert string, macaroonBytes []byte) (lnrpc.LightningClient, error) {
+func getClientConn(host, tlsCert string, macaroonBytes []byte) (grpc.ClientConnInterface, error) {
 	creds, err := credentials.NewClientTLSFromFile(tlsCert, "")
 	if err != nil {
 		return nil, fmt.Errorf("error setting tls creds: %v", err)
@@ -187,6 +195,23 @@ func SetupLndClient(host string, tlsCert string, macaroonBytes []byte) (lnrpc.Li
 		return nil, fmt.Errorf("error setting up grpc client: %v", err)
 	}
 
+	return conn, nil
+}
+
+func setupLndClient(host string, tlsCert string, macaroonBytes []byte) (lnrpc.LightningClient, error) {
+	conn, err := getClientConn(host, tlsCert, macaroonBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error getting client connection: %v", err)
+	}
 	grpcClient := lnrpc.NewLightningClient(conn)
 	return grpcClient, nil
+}
+
+func setupInvoicesClient(host string, tlsCert string, macaroonBytes []byte) (invoicesrpc.InvoicesClient, error) {
+	conn, err := getClientConn(host, tlsCert, macaroonBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error getting client connection: %v", err)
+	}
+	invoicesClient := invoicesrpc.NewInvoicesClient(conn)
+	return invoicesClient, nil
 }
