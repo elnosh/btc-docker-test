@@ -28,14 +28,14 @@ type Bitcoind struct {
 	// ContainerIP is to be used when communicating between containers in the network
 	ContainerIP string
 	Host        string
+	Network     string
 
 	// These are the mapped ports which are exposed to the host
 	RpcPort            string
 	ZmqpubrawblockPort string
 	ZmqpubrawtxPort    string
 
-	network string
-	dir     string
+	dir string
 }
 
 func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
@@ -140,10 +140,10 @@ func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 		Client:             rpcClient,
 		ContainerIP:        containerIP,
 		Host:               host,
+		Network:            networkName,
 		RpcPort:            rpcport.Port(),
 		ZmqpubrawblockPort: zmqpubrawblockport.Port(),
 		ZmqpubrawtxPort:    zmqpubrawtxport.Port(),
-		network:            networkName,
 		dir:                btcdockerDir,
 	}
 
