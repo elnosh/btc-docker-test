@@ -56,7 +56,7 @@ func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image: "polarlightning/bitcoind:26.0",
+		Image: "polarlightning/bitcoind:28.0",
 		ExposedPorts: []string{
 			BITCOIND_RPC_PORT,
 			BITCOIND_ZMQPUBRAWBLOCK_PORT,

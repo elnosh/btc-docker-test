@@ -56,7 +56,7 @@ func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 
 	rpchost := bitcoind.ContainerIP + ":" + BITCOIND_RPC_PORT
 	lndReq := testcontainers.ContainerRequest{
-		Image: "polarlightning/lnd:0.17.4-beta",
+		Image: "polarlightning/lnd:0.18.4-beta",
 		ExposedPorts: []string{
 			LND_REST_PORT,
 			LND_P2P_PORT,
