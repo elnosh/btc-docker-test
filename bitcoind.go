@@ -35,7 +35,7 @@ type Bitcoind struct {
 	ZmqpubrawblockPort string
 	ZmqpubrawtxPort    string
 
-	dir string
+	Dir string
 }
 
 func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
@@ -144,7 +144,7 @@ func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 		RpcPort:            rpcport.Port(),
 		ZmqpubrawblockPort: zmqpubrawblockport.Port(),
 		ZmqpubrawtxPort:    zmqpubrawtxport.Port(),
-		dir:                btcdockerDir,
+		Dir:                btcdockerDir,
 	}
 
 	return bitcoind, nil
@@ -152,7 +152,7 @@ func NewBitcoind(ctx context.Context) (*Bitcoind, error) {
 
 func (bitcoind *Bitcoind) Terminate(ctx context.Context) error {
 	//delete created dir
-	if err := os.RemoveAll(bitcoind.dir); err != nil {
+	if err := os.RemoveAll(bitcoind.Dir); err != nil {
 		return fmt.Errorf("error deleting created btcdocker dir: %v", err)
 	}
 

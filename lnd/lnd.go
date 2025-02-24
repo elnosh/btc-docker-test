@@ -1,4 +1,4 @@
-package btcdocker
+package lnd
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	btcdocker "github.com/elnosh/btc-docker-test"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
@@ -46,15 +47,15 @@ type Lnd struct {
 	AdminMacaroon []byte
 }
 
-func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
+func NewLnd(ctx context.Context, bitcoind *btcdocker.Bitcoind) (*Lnd, error) {
 	randomId := strconv.Itoa(rand.Int())
 
-	lndDir := filepath.Join(bitcoind.dir, randomId)
+	lndDir := filepath.Join(bitcoind.Dir, randomId)
 	if err := os.MkdirAll(lndDir, 0777); err != nil {
 		return nil, fmt.Errorf("error creating lnd dir: %v", err)
 	}
 
-	rpchost := bitcoind.ContainerIP + ":" + BITCOIND_RPC_PORT
+	rpchost := bitcoind.ContainerIP + ":" + btcdocker.BITCOIND_RPC_PORT
 	lndReq := testcontainers.ContainerRequest{
 		Image: "polarlightning/lnd:0.18.4-beta",
 		ExposedPorts: []string{
@@ -75,10 +76,10 @@ func NewLnd(ctx context.Context, bitcoind *Bitcoind) (*Lnd, error) {
 			"--bitcoin.regtest",
 			"--bitcoin.node=bitcoind",
 			"--bitcoind.rpchost=" + rpchost,
-			"--bitcoind.rpcuser=" + RPC_USER,
-			"--bitcoind.rpcpass=" + RPC_PASSWORD,
-			"--bitcoind.zmqpubrawblock=tcp://" + bitcoind.ContainerIP + ":" + BITCOIND_ZMQPUBRAWBLOCK_PORT,
-			"--bitcoind.zmqpubrawtx=tcp://" + bitcoind.ContainerIP + ":" + BITCOIND_ZMQPUBRAWTX_PORT,
+			"--bitcoind.rpcuser=" + btcdocker.RPC_USER,
+			"--bitcoind.rpcpass=" + btcdocker.RPC_PASSWORD,
+			"--bitcoind.zmqpubrawblock=tcp://" + bitcoind.ContainerIP + ":" + btcdocker.BITCOIND_ZMQPUBRAWBLOCK_PORT,
+			"--bitcoind.zmqpubrawtx=tcp://" + bitcoind.ContainerIP + ":" + btcdocker.BITCOIND_ZMQPUBRAWTX_PORT,
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.Mounts = []mount.Mount{
